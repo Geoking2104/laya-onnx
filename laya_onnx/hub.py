@@ -10,6 +10,22 @@ GRAPH_NAMES = ("laya.onnx", "model.onnx")
 CONFIG_NAMES = ("onnx_config.json", "laya_config.json", "rl_agent_config.json")
 
 
+def bundle_dir(model_id: str, revision=None) -> Path:
+    """A real, non-symlinked directory for a downloaded bundle.
+
+    ONNX Runtime validates that a model's external-data file stays inside the
+    model directory. The default Hugging Face cache stores snapshot entries as
+    symlinks into ``blobs/``, so that validation fails (seen on Windows);
+    downloading into a ``local_dir`` materialises regular files instead.
+    """
+    from huggingface_hub.constants import HF_HUB_CACHE
+
+    slug = str(model_id).replace("/", "--")
+    if revision:
+        slug += "@" + str(revision).replace("/", "--")
+    return Path(HF_HUB_CACHE) / "laya-onnx-bundles" / slug
+
+
 def find_graph(path: Path) -> Path:
     for name in GRAPH_NAMES:
         candidate = path / name
@@ -60,7 +76,7 @@ def resolve_bundle(model_id_or_path, *, token=None, subfolder=None, revision=Non
             "tokenizer/*",
         )
     ]
-    path = Path(snapshot_download(value, token=token, revision=revision, allow_patterns=patterns))
+    path = Path(snapshot_download(value, token=token, revision=revision, allow_patterns=patterns, local_dir=bundle_dir(value, revision)))
     if subfolder:
         path /= subfolder
     find_graph(path)
