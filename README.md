@@ -1,27 +1,43 @@
 # laya-onnx
 
-Runtime **ONNX Runtime** pour [Laya](https://huggingface.co/convaiinnovations/laya) — décisions typées System-1, sans génération de texte.
+ONNX Runtime for [Laya](https://huggingface.co/convaiinnovations/laya) — typed System-1 decisions, no text generation.
 
-Portage de [laya-mlx](https://github.com/mizorewww/laya-mlx) / laya-coreml vers PC : Core ML et MLX sont remplacés par `onnxruntime.InferenceSession` (`cpu`, `openvino`, `cuda`). Le layout de prompt, la calibration et la démo Snake restent alignés sur Laya amont.
-
-Laya prend un **état** (texte, email, ticket, JSON) et des **questions typées** (`choice`, `score`, `noul`) et rend, en **une seule passe**, des distributions calibrées. Rien n’est échantillonné.
-
-Les poids (~0.8–1.7 Go) ne sont **pas** dans ce dépôt. Ils se téléchargent depuis Hugging Face au premier usage.
+Port of [laya-mlx](https://github.com/mizorewww/laya-mlx) / Core ML to PC (`cpu`, `openvino`, `cuda`). One forward pass returns calibrated `choice` / `score` / `noul`. Weights stay on Hugging Face (~0.8–1.7 GB).
 
 ---
 
-## Install
+## Onboard your AI agent
 
-```bash
-python -m venv .venv
-source .venv/bin/activate
-pip install -e ".[demo]"
-pip install -e ".[openvino]"   # Intel OpenVINO
-pip install -e ".[gpu]"        # CUDA
-pip install -e ".[export]"     # torch → ONNX
+Paste **one line** into Claude Code, Codex, Cursor, Copilot, or any coding agent. It clones the repo, creates the venv, installs the CLI, and writes workspace notes.
+
+```text
+Read https://raw.githubusercontent.com/Geoking2104/laya-onnx/main/ONBOARD.md and follow it end to end.
 ```
 
-Python ≥ 3.11. Scripts installés : `laya-onnx`, `laya-onnx-snake`.
+Works with Claude Code, Codex, Cursor, GitHub Copilot, Windsurf, Cline, and similar agents. Safe to re-run. No RunPod account required for CPU.
+
+Human equivalent:
+
+```bash
+git clone https://github.com/Geoking2104/laya-onnx.git
+cd laya-onnx
+python3 -m venv .venv && source .venv/bin/activate
+pip install -U pip && pip install -e ".[demo,dev]"
+# Intel:
+pip install -e ".[openvino]"
+# torch → ONNX:
+pip install -e ".[export]"
+```
+
+Python ≥ 3.11. Entry points: `laya-onnx`, `laya-onnx-snake`.
+
+GPU cloud (optional, not this package):
+
+```bash
+npx skills add runpod/runpod-plugins-official
+```
+
+---
 
 ## Predict
 
@@ -37,11 +53,6 @@ print(agent.predict(
             "instructions": "Who should handle this?",
             "criteria": ["billing", "technical", "sales"],
         },
-        "urgency": {
-            "type": "score",
-            "instructions": "How urgent is this?",
-            "criteria": ["not urgent", "soon", "blocking"],
-        },
         "refund": {
             "type": "noul",
             "instructions": "Does the customer ask for money back?",
@@ -50,126 +61,50 @@ print(agent.predict(
 ))
 ```
 
-CLI :
-
 ```bash
-laya-onnx predict \
-  --state-file examples/state.json \
-  --questions examples/questions.json \
-  --providers cpu \
-  --threads 4
+laya-onnx predict --state-file examples/state.json --questions examples/questions.json --providers cpu
 ```
-
-`Agent` / `load` / `predict` (`system_one`) : même contrat que laya-mlx.
-
-| Type | Sortie |
-| --- | --- |
-| `choice` | `choice` + `probabilities` par label |
-| `score` | `score` (espérance 0..K-1) + `legend` |
-| `noul` | `noul` = P(true) |
 
 ## Convert & optimize
 
 ```bash
 laya-onnx convert --model convaiinnovations/laya --output onnx --precision fp32
-laya-onnx convert --model convaiinnovations/laya --output onnx-int8 --precision int8
-
 laya-onnx optimize ./onnx --precision int8
-laya-onnx optimize ./onnx --output onnx-fp16 --precision fp16
 ```
 
-`convert` écrit `laya.onnx` (+ `.data` éventuel), `onnx_config.json`, `laya_config.json`, `tokenizer/`. Axes dynamiques batch / séquence / options, opset 17.
-
-`optimize` : shape inference, fusions `ORT_ENABLE_ALL`, INT8 dynamique ou poids FP16.
-
-Sur **CPU Intel / 16 Go**, `int8` est le levier utile. `fp16` est plutôt pour CUDA.
-
-La session CPU active `ORT_ENABLE_ALL`, arena mémoire, mode séquentiel, ≤ 8 threads intra-op. Un chemin `.mlpackage` est rejeté.
-
-## Benchmark PC
-
-```bash
-PYTHONPATH=. python benchmarks/pc_benchmark.py ./onnx --calls 2000 --providers cpu
-```
-
-Warmup exclu. JSON : `n`, `p50_ms`, `p95_ms`, `mean_ms`.
+On Intel CPU use **int8**. FP16 is for CUDA.
 
 ## Snake
 
 ```bash
-pip install -e ".[demo]"
 laya-onnx-snake --model ./onnx
-laya-onnx-snake --model ./onnx --headless --steps 200
-laya-onnx-snake --unassisted --record run.jsonl
-laya-onnx-snake benchmark --help
-laya-onnx-snake export --help
 ```
 
-Touches : `q` quitter, `espace` pause, `+`/`-` fps, `r` nouvelle partie.
+Browser harness (no weights): [`examples/snake.html`](examples/snake.html).
 
-Point d’entrée : `laya_onnx/snake/cli.py` (`play`, `benchmark`, `export`).
+## Benchmark
 
-## Graphe ONNX
-
-| Tenseur | Shape | Dtype |
-| --- | --- | --- |
-| `input_ids` | `[B, L]` | int64 ou int32 |
-| `attention_mask` | `[B, L]` | idem |
-| `marker_pos` | `[B, K]` | idem |
-| `marker_mask` | `[B, K]` | bool |
-| `qtype` | `[B]` | int (`choice=0`, `score=1`, `noul=2`) |
-| `logits` | `[B, K]` | float (slots masqués ≈ -1e4) |
-| `act` / `act_probs` | `[B, 2]` | float |
-
-Padding séquence : multiple de 16.
-
-Layout : `[CLS] <type> question: instructions [SEP] [MASK] opt0 … [SEP] state [SEP]`
-
-## Layout
-
-| Fichier | Rôle |
-| --- | --- |
-| `laya_onnx/agent.py` | `InferenceSession`, providers, threads, `predict` |
-| `laya_onnx/convert.py` | torch → ONNX |
-| `laya_onnx/optimize.py` | fusions + INT8 / FP16 |
-| `laya_onnx/inputs.py` | collate, pad ×16 |
-| `laya_onnx/hub.py` | bundle local / HF |
-| `laya_onnx/torch_model.py` | `DecisionModel` |
-| `laya_onnx/common.py` | prompt, températures |
-| `laya_onnx/cli.py` | `predict` / `convert` / `optimize` |
-| `laya_onnx/snake/cli.py` | démo live + benchmark + export |
-| `tests/test_onnx_export.py` | parité torch ↔ ONNX |
-| `benchmarks/pc_benchmark.py` | P50 / P95 |
+```bash
+PYTHONPATH=. python benchmarks/pc_benchmark.py ./onnx --calls 200 --providers cpu
+```
 
 ## Tests
 
 ```bash
-pip install -e ".[export,dev]"
 PYTHONPATH=. pytest -q tests/test_onnx_export.py
 ```
 
+## Layout
+
+| Path | Role |
+| --- | --- |
+| `ONBOARD.md` | one-shot prompt for coding agents |
+| `AGENTS.md` | repo conventions |
+| `laya_onnx/agent.py` | `predict` |
+| `laya_onnx/optimize.py` | INT8 / FP16 |
+| `laya_onnx/snake/cli.py` | live Snake |
+| `examples/snake.html` | embedded test |
+
 ## Attribution
 
-- Poids : [convaiinnovations/laya](https://huggingface.co/convaiinnovations/laya) — Apache-2.0
-- Bundle ONNX : [receptron/laya-onnx](https://huggingface.co/receptron/laya-onnx)
-- Layout / Snake : [laya-mlx](https://github.com/mizorewww/laya-mlx)
-- Amont : [NandhaKishorM/laya](https://github.com/NandhaKishorM/laya)
-
-Voir LICENSE et NOTICE.
-
----
-
-## English
-
-ONNX Runtime port of Laya typed System-1 decisions. No text generation. Weights stay on Hugging Face.
-
-```bash
-pip install -e ".[demo]"
-laya-onnx predict --state-file examples/state.json --questions examples/questions.json
-laya-onnx convert --model convaiinnovations/laya --output onnx --precision fp32
-laya-onnx optimize ./onnx --precision int8
-laya-onnx-snake --model ./onnx
-PYTHONPATH=. python benchmarks/pc_benchmark.py ./onnx --calls 200 --providers cpu
-```
-
-On Intel CPU prefer **int8** over fp16. Session uses `ORT_ENABLE_ALL`, sequential mode, ≤ 8 intra-op threads. Providers: `cpu` | `openvino` | `cuda`.
+Apache-2.0. Weights: [convaiinnovations/laya](https://huggingface.co/convaiinnovations/laya). ONNX: [receptron/laya-onnx](https://huggingface.co/receptron/laya-onnx). See LICENSE and NOTICE.
