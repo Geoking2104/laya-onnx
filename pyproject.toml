@@ -1,0 +1,44 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "laya-onnx"
+version = "0.1.0"
+description = "ONNX Runtime inference for Laya typed decision models (CPU, OpenVINO, CUDA)"
+keywords = ["onnx", "onnxruntime", "laya", "typed-decisions", "decision-model", "local-ai"]
+classifiers = [
+  "Development Status :: 4 - Beta",
+  "Intended Audience :: Developers",
+  "Programming Language :: Python :: 3",
+  "Topic :: Scientific/Engineering :: Artificial Intelligence",
+]
+readme = "README.md"
+requires-python = ">=3.11"
+license = "Apache-2.0"
+dependencies = [
+  "onnxruntime>=1.18",
+  "onnx>=1.16",
+  "numpy>=1.26",
+  "huggingface-hub>=0.34,<2",
+  "tokenizers>=0.21,<1",
+]
+
+[project.optional-dependencies]
+openvino = ["onnxruntime-openvino>=1.18"]
+gpu = ["onnxruntime-gpu>=1.18"]
+export = ["torch>=2.4", "transformers>=4.44", "safetensors>=0.4"]
+dev = ["pytest>=8", "ruff>=0.12", "build>=1"]
+demo = ["rich>=13,<16", "Pillow>=10"]
+
+[project.scripts]
+laya-onnx = "laya_onnx.cli:main"
+laya-onnx-snake = "laya_onnx.snake.cli:main"
+
+[project.urls]
+Repository = "https://github.com/Geoking2104/laya-onnx"
+Upstream = "https://github.com/NandhaKishorM/laya"
+MLX = "https://github.com/mizorewww/laya-mlx"
+
+[tool.hatch.build.targets.wheel]
+packages = ["laya_onnx"]

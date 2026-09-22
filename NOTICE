@@ -1,0 +1,9 @@
+laya-onnx
+Copyright 2026 Geoffroy de La Tournelle / KayrosLab and contributors
+
+Derived from:
+- Laya (Apache-2.0) https://github.com/NandhaKishorM/laya
+- laya-mlx (Apache-2.0) https://github.com/mizorewww/laya-mlx
+
+Model weights: Convai Innovations, Apache-2.0, downloaded separately.
+Default ONNX bundle: https://huggingface.co/receptron/laya-onnx

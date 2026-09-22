@@ -1,0 +1,16 @@
+.venv/
+.upstream/
+.cache/
+models/
+onnx/
+*.safetensors
+*.onnx
+*.onnx.data
+__pycache__/
+.pytest_cache/
+.ruff_cache/
+*.egg-info/
+build/
+dist/
+.DS_Store
+.env
