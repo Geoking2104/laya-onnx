@@ -1,0 +1,13 @@
+{
+  "url": "https://www.google.com/travel/flights?hl=en",
+  "title": "Google Flights",
+  "text": "Flights One way Zurich London Sat, Sep 20",
+  "elements": [
+    {"index": 0, "role": "button", "name": "Round trip", "value": "", "tag": "button", "editable": false},
+    {"index": 1, "role": "button", "name": "One way", "value": "", "tag": "button", "editable": false},
+    {"index": 2, "role": "textbox", "name": "Where from?", "value": "", "tag": "input", "editable": true},
+    {"index": 3, "role": "textbox", "name": "Where to?", "value": "", "tag": "input", "editable": true},
+    {"index": 4, "role": "textbox", "name": "Departure", "value": "", "tag": "input", "editable": true},
+    {"index": 5, "role": "button", "name": "Search", "value": "", "tag": "button", "editable": false}
+  ]
+}
