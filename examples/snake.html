@@ -1,175 +1,58 @@
 <!DOCTYPE html>
 <html lang="fr">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>laya-onnx · Snake test</title>
-  <script src="https://cdn.tailwindcss.com"></script>
-  <style>
-    :root { color-scheme: dark; }
-    body { background: #070b12; }
-    .cell { width: 100%; aspect-ratio: 1; border-radius: 3px; }
-    #board { display: grid; gap: 2px; }
-  </style>
-</head>
-<body class="min-h-screen text-slate-100 font-sans">
-  <div class="max-w-5xl mx-auto px-4 py-8">
-    <header class="flex flex-wrap items-end justify-between gap-4 mb-6">
-      <div>
-        <p class="text-xs tracking-[0.2em] uppercase text-emerald-400/80">laya-onnx · embedded test</p>
-        <h1 class="text-3xl font-semibold mt-1">Snake</h1>
-        <p class="text-slate-400 text-sm mt-1">Même grille / cycle hamiltonien que <code class="text-emerald-300">laya_onnx.snake.game</code>. Politique locale (pas d’ONNX).</p>
-      </div>
-      <div class="flex gap-2 text-sm">
-        <span id="score" class="px-3 py-1 rounded-full bg-slate-800">score 0</span>
-        <span id="len" class="px-3 py-1 rounded-full bg-slate-800">len 6</span>
-        <span id="policy" class="px-3 py-1 rounded-full bg-emerald-900/50 text-emerald-300">Laya mock</span>
-      </div>
-    </header>
-    <div class="grid md:grid-cols-[1fr_240px] gap-6">
-      <div class="rounded-2xl border border-slate-800 bg-slate-900/40 p-4 shadow-xl">
-        <div id="board" class="mx-auto" style="max-width: 720px;"></div>
-        <p id="reason" class="mt-3 text-xs text-slate-500 h-4"></p>
-      </div>
-      <aside class="space-y-4">
-        <div class="rounded-2xl border border-slate-800 p-4 bg-slate-900/50 space-y-3">
-          <label class="block text-xs text-slate-400">Mode
-            <select id="mode" class="mt-1 w-full bg-slate-800 rounded-lg px-2 py-2">
-              <option value="laya">Laya mock (nourriture + bouclier)</option>
-              <option value="cycle">Cycle hamiltonien seul</option>
-              <option value="human">Clavier</option>
-            </select>
-          </label>
-          <label class="block text-xs text-slate-400">FPS
-            <input id="fps" type="range" min="2" max="24" value="10" class="w-full" />
-          </label>
-          <div class="flex gap-2">
-            <button id="play" class="flex-1 bg-emerald-500 text-slate-900 font-semibold rounded-lg py-2">Play</button>
-            <button id="reset" class="flex-1 bg-slate-700 rounded-lg py-2">Reset</button>
-          </div>
-        </div>
-        <ul class="text-xs text-slate-500 space-y-1">
-          <li>Espace : pause · R : reset</li>
-          <li>Bouclier : mur / corps / reverse</li>
-        </ul>
-      </aside>
-    </div>
-  </div>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>laya-onnx Snake</title>
+<style>
+*{box-sizing:border-box}body{margin:0;font-family:system-ui,sans-serif;background:#070b12;color:#e2e8f0}
+.wrap{max-width:960px;margin:0 auto;padding:24px 16px}header{display:flex;flex-wrap:wrap;justify-content:space-between;gap:12px;margin-bottom:16px}
+h1{margin:4px 0 0;font-size:28px}.kicker{letter-spacing:.2em;text-transform:uppercase;color:#34d399;font-size:11px}.muted{color:#94a3b8;font-size:13px}
+.pills{display:flex;gap:8px}.pill{background:#1e293b;padding:6px 12px;border-radius:999px;font-size:13px}
+.layout{display:grid;grid-template-columns:1fr 220px;gap:16px}@media(max-width:720px){.layout{grid-template-columns:1fr}}
+.card{background:#0f172a;border:1px solid #1e293b;border-radius:16px;padding:16px}
+#board{display:grid;gap:2px;max-width:720px;margin:0 auto}.cell{width:100%;aspect-ratio:1;border-radius:3px;background:#1e293b}
+.snake{background:#059669}.head{background:#6ee7b7}.food{background:#fbbf24}
+button,select{width:100%;padding:8px;border-radius:8px;border:0;background:#334155;color:#e2e8f0;margin-top:4px}
+#play{background:#34d399;color:#0f172a;font-weight:700}.row{display:flex;gap:8px;margin-top:8px}
+label{display:block;font-size:12px;color:#94a3b8;margin-top:8px}#reason{min-height:18px;font-size:12px;color:#64748b;margin:10px 0 0}
+</style></head>
+<body>
+<div class="wrap">
+<header><div><div class="kicker">laya-onnx</div><h1>Snake</h1><p class="muted">24x16 — démarre tout seul</p></div>
+<div class="pills"><span class="pill" id="score">score 0</span><span class="pill" id="len">len 6</span><span class="pill" id="policy">Laya mock</span></div></header>
+<div class="layout"><div class="card"><div id="board"></div><p id="reason"></p></div>
+<div class="card"><label>Mode<select id="mode"><option value="laya">Laya mock</option><option value="cycle">Cycle</option><option value="human">Clavier</option></select></label>
+<label>FPS <input id="fps" type="range" min="2" max="20" value="8"/></label>
+<div class="row"><button id="play">Pause</button><button id="reset">Reset</button></div>
+<p class="muted" style="margin-top:12px">Espace / R / flèches</p></div></div></div>
 <script>
-const W = 24, H = 16, CAP = W * H;
-const DIRS = { UP: [0, -1], DOWN: [0, 1], LEFT: [-1, 0], RIGHT: [1, 0] };
-const NAMES = ["UP", "DOWN", "LEFT", "RIGHT"];
-function hamiltonian(w, h) {
-  if (h % 2) return hamiltonian(h, w).map(([x, y]) => [y, x]);
-  const path = [[0, 0]];
-  for (let y = 0; y < h; y++) {
-    if (y % 2 === 0) for (let x = 1; x < w; x++) path.push([x, y]);
-    else for (let x = w - 1; x > 0; x--) path.push([x, y]);
-  }
-  for (let y = h - 1; y > 0; y--) path.push([0, y]);
-  return path;
-}
-const cycle = hamiltonian(W, H);
-const indices = new Map(cycle.map((c, i) => [c.join(","), i]));
-function mulberry32(a) {
-  return function () {
-    let t = (a += 0x6d2b79f5);
-    t = Math.imul(t ^ (t >>> 15), t | 1);
-    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
-    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
-  };
-}
-class Game {
-  constructor(seed = 7, length = 6) {
-    this.rng = mulberry32(seed);
-    const start = indices.get(`${Math.floor(W / 2)},${Math.floor(H / 2)}`);
-    this.body = [];
-    for (let i = 0; i < length; i++) this.body.push(cycle[(start - i + CAP) % CAP]);
-    this.score = 0; this.alive = true; this.food = this.spawn();
-  }
-  get head() { return this.body[0]; }
-  spawn() {
-    const occ = new Set(this.body.map((c) => c.join(",")));
-    const empty = cycle.filter((c) => !occ.has(c.join(",")));
-    return empty[Math.floor(this.rng() * empty.length)] || null;
-  }
-  target(dir) { const [dx, dy] = DIRS[dir]; return [this.head[0] + dx, this.head[1] + dy]; }
-  legal(dir) {
-    const [x, y] = this.target(dir);
-    if (x < 0 || y < 0 || x >= W || y >= H) return "wall";
-    if (this.body[1] && this.body[1][0] === x && this.body[1][1] === y) return "reverse";
-    const occ = new Set(this.body.map((c) => c.join(",")));
-    const eats = this.food && this.food[0] === x && this.food[1] === y;
-    if (!eats) occ.delete(this.body.at(-1).join(","));
-    return occ.has(`${x},${y}`) ? "body" : "legal";
-  }
-  step(dir) {
-    if (!this.alive) return "dead";
-    const why = this.legal(dir);
-    if (why !== "legal") { this.alive = false; return why; }
-    const nxt = this.target(dir);
-    const eats = this.food && nxt[0] === this.food[0] && nxt[1] === this.food[1];
-    this.body.unshift(nxt);
-    if (eats) { this.score++; this.food = this.spawn(); } else this.body.pop();
-    return eats ? "eat" : "ok";
-  }
-}
-function manhattan(a, b) { return Math.abs(a[0] - b[0]) + Math.abs(a[1] - b[1]); }
-function cycleDir(game) {
-  const i = indices.get(game.head.join(","));
-  const nxt = cycle[(i + 1) % CAP];
-  const dx = nxt[0] - game.head[0], dy = nxt[1] - game.head[1];
-  if (dx === 1) return "RIGHT"; if (dx === -1) return "LEFT"; if (dy === 1) return "DOWN"; return "UP";
-}
-function layaMock(game) {
-  const ranked = NAMES.map((d) => ({ d, legal: game.legal(d), dist: game.food ? manhattan(game.target(d), game.food) : 99 })).sort((a, b) => a.dist - b.dist);
-  const safe = ranked.find((m) => m.legal === "legal");
-  return safe ? safe.d : cycleDir(game);
-}
-const boardEl = document.getElementById("board");
-boardEl.style.gridTemplateColumns = `repeat(${W}, minmax(0, 1fr))`;
-const cells = [];
-for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
-  const d = document.createElement("div"); d.className = "cell bg-slate-800/80"; boardEl.appendChild(d); cells.push(d);
-}
-let game = new Game(), running = false, humanDir = "RIGHT", timer = null;
-function paint() {
-  cells.forEach((c) => { c.className = "cell bg-slate-800/80"; });
-  if (game.food) cells[game.food[1] * W + game.food[0]].className = "cell bg-amber-400 shadow";
-  game.body.forEach((c, i) => { cells[c[1] * W + c[0]].className = i === 0 ? "cell bg-emerald-300" : "cell bg-emerald-600/80"; });
-  document.getElementById("score").textContent = `score ${game.score}`;
-  document.getElementById("len").textContent = `len ${game.body.length}`;
-}
-function tick() {
-  const mode = document.getElementById("mode").value;
-  let dir = cycleDir(game);
-  if (mode === "laya") dir = layaMock(game);
-  if (mode === "human") dir = humanDir;
-  const r = game.step(dir);
-  document.getElementById("reason").textContent = game.alive ? `${dir} · ${r}` : `mort · ${r}`;
-  paint(); if (!game.alive) stop();
-}
-function start() {
-  if (running) return; running = true;
-  document.getElementById("play").textContent = "Pause";
-  timer = setInterval(tick, 1000 / Number(document.getElementById("fps").value));
-}
-function stop() { running = false; document.getElementById("play").textContent = "Play"; clearInterval(timer); }
-function reset() { stop(); game = new Game(); humanDir = "RIGHT"; document.getElementById("reason").textContent = ""; paint(); }
-document.getElementById("play").onclick = () => (running ? stop() : start());
-document.getElementById("reset").onclick = reset;
-document.getElementById("mode").onchange = () => {
-  const m = document.getElementById("mode").value;
-  document.getElementById("policy").textContent = m === "human" ? "humain" : m === "cycle" ? "cycle" : "Laya mock";
-};
-document.getElementById("fps").onchange = () => { if (running) { stop(); start(); } };
-window.addEventListener("keydown", (e) => {
-  const map = { ArrowUp: "UP", ArrowDown: "DOWN", ArrowLeft: "LEFT", ArrowRight: "RIGHT", w: "UP", s: "DOWN", a: "LEFT", d: "RIGHT" };
-  if (map[e.key]) { humanDir = map[e.key]; e.preventDefault(); }
-  if (e.key === " ") { running ? stop() : start(); e.preventDefault(); }
-  if (e.key === "r" || e.key === "R") reset();
-});
-paint();
-</script>
-</body>
-</html>
+(function(){
+var W=24,H=16,CAP=W*H;
+var DIRS={UP:[0,-1],DOWN:[0,1],LEFT:[-1,0],RIGHT:[1,0]};
+var NAMES=["UP","DOWN","LEFT","RIGHT"];
+function hamiltonian(w,h){if(h%2)return hamiltonian(h,w).map(function(p){return[p[1],p[0]]});var path=[[0,0]],y,x;for(y=0;y<h;y++){if(y%2===0)for(x=1;x<w;x++)path.push([x,y]);else for(x=w-1;x>0;x--)path.push([x,y]);}for(y=h-1;y>0;y--)path.push([0,y]);return path;}
+var cycle=hamiltonian(W,H),indices={};cycle.forEach(function(c,i){indices[c[0]+","+c[1]]=i;});
+function rng(seed){return function(){var t=(seed+=0x6d2b79f5);t=Math.imul(t^t>>>15,t|1);t^=t+Math.imul(t^t>>>7,t|61);return((t^t>>>14)>>>0)/4294967296;};}
+function Game(){this.rand=rng(7);var start=indices[Math.floor(W/2)+","+Math.floor(H/2)];this.body=[];for(var i=0;i<6;i++)this.body.push(cycle[(start-i+CAP)%CAP]);this.score=0;this.alive=true;this.food=this.spawn();}
+Game.prototype.spawn=function(){var occ={},i;for(i=0;i<this.body.length;i++)occ[this.body[i][0]+","+this.body[i][1]]=1;var empty=[];for(i=0;i<cycle.length;i++)if(!occ[cycle[i][0]+","+cycle[i][1]])empty.push(cycle[i]);return empty[Math.floor(this.rand()*empty.length)]||null;};
+Game.prototype.target=function(dir){var d=DIRS[dir];return[this.body[0][0]+d[0],this.body[0][1]+d[1]];};
+Game.prototype.legal=function(dir){var t=this.target(dir),x=t[0],y=t[1],i;if(x<0||y<0||x>=W||y>=H)return"wall";var n=this.body[1];if(n&&n[0]===x&&n[1]===y)return"reverse";var occ={};for(i=0;i<this.body.length;i++)occ[this.body[i][0]+","+this.body[i][1]]=1;var eats=this.food&&this.food[0]===x&&this.food[1]===y;if(!eats){var tail=this.body[this.body.length-1];delete occ[tail[0]+","+tail[1]];}return occ[x+","+y]?"body":"legal";};
+Game.prototype.step=function(dir){if(!this.alive)return"dead";var why=this.legal(dir);if(why!=="legal"){this.alive=false;return why;}var nxt=this.target(dir);var eats=this.food&&nxt[0]===this.food[0]&&nxt[1]===this.food[1];this.body.unshift(nxt);if(eats){this.score++;this.food=this.spawn();}else this.body.pop();return eats?"eat":"ok";};
+function cycleDir(g){var i=indices[g.body[0][0]+","+g.body[0][1]];var nxt=cycle[(i+1)%CAP];var dx=nxt[0]-g.body[0][0],dy=nxt[1]-g.body[0][1];if(dx===1)return"RIGHT";if(dx===-1)return"LEFT";if(dy===1)return"DOWN";return"UP";}
+function mock(g){var best=null,bestD=99,i;for(i=0;i<NAMES.length;i++){var d=NAMES[i];if(g.legal(d)!=="legal")continue;var t=g.target(d);var dist=g.food?Math.abs(t[0]-g.food[0])+Math.abs(t[1]-g.food[1]):99;if(dist<bestD){bestD=dist;best=d;}}return best||cycleDir(g);}
+var board=document.getElementById("board");board.style.gridTemplateColumns="repeat("+W+",minmax(0,1fr))";var cells=[],i;for(i=0;i<W*H;i++){var el=document.createElement("div");el.className="cell";board.appendChild(el);cells.push(el);}
+var game=new Game(),running=false,humanDir="RIGHT",timer=null;
+function paint(){for(i=0;i<cells.length;i++)cells[i].className="cell";if(game.food)cells[game.food[1]*W+game.food[0]].className="cell food";for(i=0;i<game.body.length;i++){var c=game.body[i];cells[c[1]*W+c[0]].className="cell "+(i===0?"head":"snake");}document.getElementById("score").textContent="score "+game.score;document.getElementById("len").textContent="len "+game.body.length;}
+function tick(){var mode=document.getElementById("mode").value;var dir=cycleDir(game);if(mode==="laya")dir=mock(game);if(mode==="human")dir=humanDir;var r=game.step(dir);document.getElementById("reason").textContent=game.alive?(dir+" · "+r):("mort · "+r);paint();if(!game.alive)stop();}
+function start(){if(running)return;running=true;document.getElementById("play").textContent="Pause";timer=setInterval(tick,1000/Number(document.getElementById("fps").value));}
+function stop(){running=false;document.getElementById("play").textContent="Play";clearInterval(timer);}
+function reset(){stop();game=new Game();humanDir="RIGHT";document.getElementById("reason").textContent="";paint();start();}
+document.getElementById("play").onclick=function(){running?stop():start();};
+document.getElementById("reset").onclick=reset;
+document.getElementById("mode").onchange=function(){var m=document.getElementById("mode").value;document.getElementById("policy").textContent=m==="human"?"humain":m==="cycle"?"cycle":"Laya mock";};
+document.getElementById("fps").onchange=function(){if(running){stop();start();}};
+window.addEventListener("keydown",function(e){var map={ArrowUp:"UP",ArrowDown:"DOWN",ArrowLeft:"LEFT",ArrowRight:"RIGHT",w:"UP",s:"DOWN",a:"LEFT",d:"RIGHT"};if(map[e.key]){humanDir=map[e.key];e.preventDefault();}if(e.key===" "){running?stop():start();e.preventDefault();}if(e.key==="r"||e.key==="R")reset();});
+paint();start();
+})();
+</script></body></html>
