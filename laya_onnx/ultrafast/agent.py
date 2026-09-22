@@ -30,11 +30,12 @@ def _type_text(goal: str, el_name: str) -> str:
         return _heuristic_text(goal, el_name)
 
 class UltrafastAgent:
-    def __init__(self, url: str, goal: str, *, model: str = "receptron/laya-onnx", providers: str = "cpu", fixture: str | None = None, headless: bool = True, laya=None):
+    def __init__(self, url: str, goal: str, *, model: str = "receptron/laya-onnx", providers: str = "cpu", fixture: str | None = None, headless: bool = True, laya=None, deterministic: bool = False):
         self.url, self.goal, self.fixture, self.headless = url, goal, fixture, headless
+        self.deterministic = bool(deterministic)
         if laya is None:
             from laya_onnx import load
-            self.laya = load(model, providers=providers)
+            self.laya = load(model, providers=providers, deterministic=self.deterministic)
         else:
             self.laya = laya
         self.browser = None
@@ -50,14 +51,19 @@ class UltrafastAgent:
             self.browser = open_browser(self.url, fixture=self.fixture, headless=self.headless)
         for step in range(max_steps):
             snap = self.browser.snapshot()
-            decision = decide(self.laya, snap, self.goal)
+            decision = decide(self.laya, snap, self.goal, argmax=self.deterministic)
             op, target, text, status = decision["op"], decision["target"], None, "ok"
             try:
                 if op == "CLICK" and target is not None:
                     self.browser.click(target)
                 elif op == "TYPE_TEXT" and target is not None:
                     el = snap.by_index(target)
-                    text = _type_text(self.goal, el.name if el else "")
+                    name = el.name if el else ""
+                    text = (
+                        _heuristic_text(self.goal, name)
+                        if self.deterministic
+                        else _type_text(self.goal, name)
+                    )
                     self.browser.type_text(target, text)
                 elif op == "SELECT" and target is not None:
                     self.browser.select(target)

@@ -24,6 +24,9 @@ def main(argv=None):
     source.add_argument("--state-file", type=Path, help="JSON state file")
     predict.add_argument("--questions", required=True, type=Path)
     predict.add_argument("--batch-size", type=int, default=16)
+    predict.add_argument(
+        "--deterministic", action="store_true", help="threads=1, pad off, predict_argmax"
+    )
 
     convert = commands.add_parser("convert")
     convert.add_argument("--model", default="convaiinnovations/laya")
@@ -56,5 +59,11 @@ def main(argv=None):
         subfolder=args.subfolder,
         batch_size=args.batch_size,
         threads=args.threads,
+        deterministic=args.deterministic,
     )
-    print(json.dumps(agent.predict(state, questions), ensure_ascii=False, indent=2))
+    result = (
+        agent.predict_argmax(state, questions)
+        if args.deterministic
+        else agent.predict(state, questions)
+    )
+    print(json.dumps(result, ensure_ascii=False, indent=2))

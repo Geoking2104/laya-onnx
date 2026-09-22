@@ -61,7 +61,11 @@ class Agent:
         batch_size=16,
         threads=None,
         pad_to_multiple=16,
+        deterministic=False,
     ):
+        if deterministic:
+            threads = 1
+            pad_to_multiple = None
         if providers not in ("cpu", "openvino", "cuda"):
             raise ValueError("providers must be 'cpu', 'openvino', or 'cuda'")
         if not isinstance(batch_size, int) or isinstance(batch_size, bool) or batch_size < 1:
@@ -74,6 +78,7 @@ class Agent:
             raise ValueError("pad_to_multiple must be a positive integer or None")
         self.providers = providers
         self.batch_size = batch_size
+        self.deterministic = bool(deterministic)
         self.pad_to_multiple = pad_to_multiple
         self.model_id = str(model_id_or_path)
         self.revision = revision
@@ -124,7 +129,7 @@ class Agent:
         sess_opts = ort.SessionOptions()
         sess_opts.graph_optimization_level = ort.GraphOptimizationLevel.ORT_ENABLE_ALL
         sess_opts.enable_mem_pattern = True
-        sess_opts.enable_cpu_mem_arena = True
+        sess_opts.enable_cpu_mem_arena = not self.deterministic
         sess_opts.execution_mode = ort.ExecutionMode.ORT_SEQUENTIAL
         workers = int(threads) if threads else min(8, os.cpu_count() or 4)
         sess_opts.intra_op_num_threads = workers
@@ -198,7 +203,7 @@ class Agent:
         outputs = self.session.run(names, feeds)
         return tuple(np.asarray(o) for o in outputs)
 
-    def system_one(self, state, questions):
+    def system_one(self, state, questions, *, argmax=False):
         items, internal = self.prepare(state, questions)
         answers = {}
         question_ids = list(questions)
@@ -223,7 +228,11 @@ class Agent:
             for row, item in enumerate(chunk):
                 qid, q = question_ids[start + row], internal[start + row]
                 k, qt = len(item["markers"]), item["qtype"]
-                scale = self.temperature_by_options.get(temp_bucket(qt, k), self.temperature[qt])
+                scale = (
+                    1.0
+                    if argmax
+                    else self.temperature_by_options.get(temp_bucket(qt, k), self.temperature[qt])
+                )
                 z = logits[row, :k] / scale
                 p = np.exp(z - z.max())
                 p /= p.sum()
@@ -259,9 +268,13 @@ class Agent:
 
     predict = system_one
 
+    def predict_argmax(self, state, questions):
+        """Deterministic path: ignore calibrated temperature (see docs/DETERMINISTIC.md)."""
+        return self.system_one(state, questions, argmax=True)
+
 
 RLAgent = Agent
 
 
-def load(model_id_or_path="receptron/laya-onnx", providers="cpu", token=None, subfolder=None, **kwargs):
-    return Agent(model_id_or_path, providers=providers, token=token, subfolder=subfolder, **kwargs)
+def load(model_id_or_path="receptron/laya-onnx", providers="cpu", token=None, subfolder=None, deterministic=False, **kwargs):
+    return Agent(model_id_or_path, providers=providers, token=token, subfolder=subfolder, deterministic=deterministic, **kwargs)
