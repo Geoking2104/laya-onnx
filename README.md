@@ -1,41 +1,51 @@
 # laya-onnx
 
-ONNX Runtime for [Laya](https://huggingface.co/convaiinnovations/laya) — typed System-1 decisions, no text generation.
+ONNX Runtime for [Laya](https://huggingface.co/convaiinnovations/laya) — typed System-1 decisions, no generated tokens.
 
-Port of [laya-mlx](https://github.com/mizorewww/laya-mlx) / Core ML to PC (`cpu`, `openvino`, `cuda`). One forward pass returns calibrated `choice` / `score` / `noul`. Weights stay on Hugging Face (~0.8–1.7 GB).
+PC / Linux / Windows / Intel sibling of [laya-coreml](https://github.com/mizorewww/laya-coreml) (Apple Silicon + ANE). Same `choice` / `score` / `noul` contract. Weights stay on Hugging Face.
+
+Playable board (canvas, no model): [examples/snake.html](https://cdn.jsdelivr.net/gh/Geoking2104/laya-onnx@main/examples/snake.html)
 
 ---
 
 ## Onboard your AI agent
 
-Paste **one line** into Claude Code, Codex, Cursor, Copilot, or any coding agent. It clones the repo, creates the venv, installs the CLI, and writes workspace notes.
+Paste one line into Claude Code, Codex, Cursor or Copilot:
 
 ```text
 Read https://raw.githubusercontent.com/Geoking2104/laya-onnx/main/ONBOARD.md and follow it end to end.
 ```
 
-Works with Claude Code, Codex, Cursor, GitHub Copilot, Windsurf, Cline, and similar agents. Safe to re-run. No RunPod account required for CPU.
-
-Human equivalent:
-
 ```bash
-git clone https://github.com/Geoking2104/laya-onnx.git
-cd laya-onnx
+git clone https://github.com/Geoking2104/laya-onnx.git && cd laya-onnx
 python3 -m venv .venv && source .venv/bin/activate
 pip install -U pip && pip install -e ".[demo,dev]"
-# Intel:
-pip install -e ".[openvino]"
-# torch → ONNX:
-pip install -e ".[export]"
+pip install -e ".[openvino]"   # Intel
+pip install -e ".[export]"     # torch → ONNX
 ```
 
-Python ≥ 3.11. Entry points: `laya-onnx`, `laya-onnx-snake`.
+Python ≥ 3.11. Commands: `laya-onnx`, `laya-onnx-snake`.
 
-GPU cloud (optional, not this package):
+---
 
-```bash
-npx skills add runpod/runpod-plugins-official
-```
+## vs laya-coreml
+
+| | [laya-coreml](https://github.com/mizorewww/laya-coreml) | **laya-onnx** (this repo) |
+| --- | --- | --- |
+| Target | Apple Silicon, macOS 15+ | PC: Linux / Windows / macOS x86_64 |
+| Runtime | Core ML `MLModel` | ONNX Runtime `InferenceSession` |
+| Accelerator | ANE + GPU, FP16 / W8 | CPU, OpenVINO, CUDA; INT8 dynamic |
+| Published latency | **4.98 ms P50 / 5.31 ms P95** (M3 Max ANE FP16) | measure with `benchmarks/pc_benchmark.py` |
+| Energy | 2.78× vs compiled MLX (SMC) | not measured |
+| Token budget | ANE L96 or GPU L512–1024 | dynamic pad ×16, `max_len` from bundle |
+| Fidelity fixtures | 189/189 FP16, 59/59 ANE | tiny `DecisionModel` parity test only |
+| Snake | real Core ML + shield, 49–50 dec/s | CLI `laya-onnx-snake` + canvas HTML mock |
+| Convert | `laya-coreml convert` → `.mlpackage` | `laya-onnx convert` → `laya.onnx` |
+| Ship | PyPI + Hub `.mlpackage` | git install; Hub ONNX |
+
+Same product idea: one forward pass, calibrated typed answers. Different silicon.
+
+Core ML stays the right choice on M-series. This port is for Intel i7 / 16 GB class machines where ANE does not exist.
 
 ---
 
@@ -46,23 +56,13 @@ from laya_onnx import load
 
 agent = load("receptron/laya-onnx", providers="cpu", threads=4)
 print(agent.predict(
-    "I was billed twice. Please refund the duplicate.",
-    {
-        "department": {
-            "type": "choice",
-            "instructions": "Who should handle this?",
-            "criteria": ["billing", "technical", "sales"],
-        },
-        "refund": {
-            "type": "noul",
-            "instructions": "Does the customer ask for money back?",
-        },
-    },
+    "The customer requests a refund of a duplicate payment.",
+    {"refund": {"type": "noul", "instructions": "Does the customer request a refund?"}},
 ))
 ```
 
 ```bash
-laya-onnx predict --state-file examples/state.json --questions examples/questions.json --providers cpu
+laya-onnx predict --state-file examples/state.json --questions examples/questions.json
 ```
 
 ## Convert & optimize
@@ -72,7 +72,7 @@ laya-onnx convert --model convaiinnovations/laya --output onnx --precision fp32
 laya-onnx optimize ./onnx --precision int8
 ```
 
-On Intel CPU use **int8**. FP16 is for CUDA.
+Intel CPU: INT8. CUDA: FP16. A `.mlpackage` path is rejected — use laya-coreml there.
 
 ## Snake
 
@@ -80,7 +80,9 @@ On Intel CPU use **int8**. FP16 is for CUDA.
 laya-onnx-snake --model ./onnx
 ```
 
-Browser harness (no weights): [`examples/snake.html`](examples/snake.html).
+Browser mock: https://cdn.jsdelivr.net/gh/Geoking2104/laya-onnx@main/examples/snake.html
+
+Do not use `htmlpreview.github.io` — it often skips JavaScript.
 
 ## Benchmark
 
@@ -88,23 +90,6 @@ Browser harness (no weights): [`examples/snake.html`](examples/snake.html).
 PYTHONPATH=. python benchmarks/pc_benchmark.py ./onnx --calls 200 --providers cpu
 ```
 
-## Tests
-
-```bash
-PYTHONPATH=. pytest -q tests/test_onnx_export.py
-```
-
-## Layout
-
-| Path | Role |
-| --- | --- |
-| `ONBOARD.md` | one-shot prompt for coding agents |
-| `AGENTS.md` | repo conventions |
-| `laya_onnx/agent.py` | `predict` |
-| `laya_onnx/optimize.py` | INT8 / FP16 |
-| `laya_onnx/snake/cli.py` | live Snake |
-| `examples/snake.html` | embedded test |
-
 ## Attribution
 
-Apache-2.0. Weights: [convaiinnovations/laya](https://huggingface.co/convaiinnovations/laya). ONNX: [receptron/laya-onnx](https://huggingface.co/receptron/laya-onnx). See LICENSE and NOTICE.
+Apache-2.0. Independent ONNX port. Upstream: Laya, laya-mlx, [laya-coreml](https://github.com/mizorewww/laya-coreml). Not an official Convai or Apple release. See LICENSE and NOTICE.
