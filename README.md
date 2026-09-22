@@ -2,7 +2,7 @@
 
 ONNX Runtime for [Laya](https://huggingface.co/convaiinnovations/laya) — typed System-1 decisions, no generated tokens.
 
-PC sibling of [laya-coreml](https://github.com/mizorewww/laya-coreml). Same `choice` / `score` / `noul` contract.
+PC sibling of [laya-coreml](https://github.com/mizorewww/laya-coreml). Same `choice` / `score` / `noul` contract. Weights stay on Hugging Face.
 
 **Play Snake:** https://raw.githack.com/Geoking2104/laya-onnx/main/examples/snake.html
 
@@ -10,6 +10,27 @@ PC sibling of [laya-coreml](https://github.com/mizorewww/laya-coreml). Same `cho
 
 ```text
 Read https://raw.githubusercontent.com/Geoking2104/laya-onnx/main/ONBOARD.md and follow it end to end.
+```
+
+## Install
+
+```bash
+git clone https://github.com/Geoking2104/laya-onnx.git && cd laya-onnx
+python3 -m venv .venv && source .venv/bin/activate   # Windows: .venv\Scripts\activate
+pip install -U pip && pip install -e ".[demo,dev]"
+pip install -e ".[openvino]"   # Intel CPU
+pip install -e ".[ultrafast]"  # optional: Playwright DOM loop
+```
+
+Model weights are not in git. The first `load("receptron/laya-onnx")` (or the first CLI run) fetches them from the Hub.
+
+## CLI
+
+```bash
+laya-onnx predict  --state "..." --questions q.json --model ./onnx
+laya-onnx convert  --model convaiinnovations/laya --output onnx --precision fp32
+laya-onnx optimize ./onnx --precision int8          # Intel CPU
+laya-onnx-ultrafast --dry-run --fixture examples/ultrafast_page.json --goal "..."
 ```
 
 ## Deterministic mode
@@ -28,7 +49,7 @@ laya-onnx-ultrafast --deterministic --dry-run --fixture examples/ultrafast_page.
   --goal "Find one-way flights from Zurich to London on 20 September 2026."
 ```
 
-`deterministic=True` sets `threads=1`, `pad_to_multiple=None`, disables the CPU mem arena. Ultrafast then uses heuristic TYPE_TEXT (no TEXT_MODEL). Replay logits in CI if two ORT builds must match bit-exactly.
+`deterministic=True` sets `threads=1`, `pad_to_multiple=None`, disables the CPU mem arena. Ultrafast then uses `predict_argmax` and heuristic TYPE_TEXT (no TEXT_MODEL). Still not bit-identical across ORT versions — pin `onnxruntime` and the ONNX graph. See [docs/DETERMINISTIC.md](docs/DETERMINISTIC.md).
 
 ## Ultrafast (NL goal + DOM loop)
 
