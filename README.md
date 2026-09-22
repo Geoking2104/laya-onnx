@@ -12,21 +12,28 @@ PC sibling of [laya-coreml](https://github.com/mizorewww/laya-coreml). Same `cho
 Read https://raw.githubusercontent.com/Geoking2104/laya-onnx/main/ONBOARD.md and follow it end to end.
 ```
 
-## Ultrafast (NL goal + DOM loop)
+## Deterministic mode
 
-Port of [jev-ultrafast](https://github.com/browser-use/jev-ultrafast) / [laya-ultrafast](https://github.com/ipenywis/laya-ultrafast) onto **local ONNX** instead of hosted Jev or MLX.
+`predict()` already uses argmax. Residual jitter comes from ORT threads, dynamic pad-to-16, temperature on confidence, and the optional TYPE_TEXT LLM.
+
+```python
+from laya_onnx import load
+agent = load("./onnx", providers="cpu", deterministic=True)
+print(agent.predict_argmax(state, questions))
+```
 
 ```bash
-pip install -e ".[ultrafast]" && playwright install chromium   # live Chrome
-laya-onnx-ultrafast --dry-run --fixture examples/ultrafast_page.json \
+laya-onnx-ultrafast --deterministic --dry-run --fixture examples/ultrafast_page.json \
   --goal "Find one-way flights from Zurich to London on 20 September 2026."
 ```
 
-```python
-from laya_onnx.ultrafast import UltrafastAgent
-with UltrafastAgent(url, goal, model="./onnx", providers="cpu") as agent:
-    for step in agent.run():
-        print(step["op"], step.get("target"), step["status"])
+`deterministic=True` forces `threads=1`, `pad_to_multiple=None`, and disables the ORT CPU arena. Ultrafast then uses `predict_argmax` and heuristic TYPE_TEXT (no `TEXT_MODEL_API_KEY`). Two ORT builds can still differ at the last ulp — snapshot logits in CI if you need bit-stable replay.
+
+## Ultrafast (NL goal + DOM loop)
+
+```bash
+pip install -e ".[ultrafast]" && playwright install chromium
+laya-onnx-ultrafast --dry-run --fixture examples/ultrafast_page.json --goal "..."
 ```
 
 Spec: [docs/ULTRAFAST.md](docs/ULTRAFAST.md)
