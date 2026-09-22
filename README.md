@@ -19,15 +19,16 @@ Read https://raw.githubusercontent.com/Geoking2104/laya-onnx/main/ONBOARD.md and
 ```python
 from laya_onnx import load
 agent = load("./onnx", providers="cpu", deterministic=True)
-print(agent.predict_argmax(state, questions))
+print(agent.predict_argmax(state, questions))  # ignore temperature
 ```
 
 ```bash
+laya-onnx predict --deterministic --state "..." --questions q.json --model ./onnx
 laya-onnx-ultrafast --deterministic --dry-run --fixture examples/ultrafast_page.json \
   --goal "Find one-way flights from Zurich to London on 20 September 2026."
 ```
 
-`deterministic=True` forces `threads=1`, `pad_to_multiple=None`, and disables the ORT CPU arena. Ultrafast then uses `predict_argmax` and heuristic TYPE_TEXT (no `TEXT_MODEL_API_KEY`). Two ORT builds can still differ at the last ulp — snapshot logits in CI if you need bit-stable replay.
+`deterministic=True` sets `threads=1`, `pad_to_multiple=None`, disables the CPU mem arena. Ultrafast then uses heuristic TYPE_TEXT (no TEXT_MODEL). Replay logits in CI if two ORT builds must match bit-exactly.
 
 ## Ultrafast (NL goal + DOM loop)
 
