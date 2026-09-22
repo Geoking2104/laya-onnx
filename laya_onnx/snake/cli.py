@@ -2,11 +2,8 @@
 
 import argparse
 import json
-import select
 import sys
-import termios
 import time
-import tty
 from collections import deque
 from contextlib import nullcontext
 from datetime import datetime, timezone
@@ -21,23 +18,46 @@ from .ui import BG, compose, layout_size
 
 
 class Keyboard:
+    """Non-blocking raw-key reader: cbreak on POSIX, msvcrt on Windows."""
+
     def __enter__(self):
+        self._posix = sys.platform != "win32"
         self.saved = None
         if sys.stdin.isatty():
-            self.fd = sys.stdin.fileno()
-            self.saved = termios.tcgetattr(self.fd)
-            tty.setcbreak(self.fd)
+            if self._posix:
+                import termios
+                import tty
+
+                self.fd = sys.stdin.fileno()
+                self.saved = termios.tcgetattr(self.fd)
+                tty.setcbreak(self.fd)
+            else:
+                import msvcrt  # noqa: F401  (present on Windows)
+
+                self.saved = True
         return self
 
     def read(self):
-        import os
+        if not self.saved:
+            return ""
+        if self._posix:
+            import os
+            import select
 
-        if self.saved and select.select([sys.stdin], [], [], 0)[0]:
-            return os.read(self.fd, 128).decode(errors="ignore")
-        return ""
+            if select.select([sys.stdin], [], [], 0)[0]:
+                return os.read(self.fd, 128).decode(errors="ignore")
+            return ""
+        import msvcrt
+
+        chars = []
+        while msvcrt.kbhit():
+            chars.append(msvcrt.getwch())
+        return "".join(chars)
 
     def __exit__(self, *_):
-        if self.saved:
+        if self._posix and self.saved:
+            import termios
+
             termios.tcsetattr(self.fd, termios.TCSADRAIN, self.saved)
 
 

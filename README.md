@@ -31,6 +31,7 @@ laya-onnx predict  --state "..." --questions q.json --model ./onnx
 laya-onnx convert  --model convaiinnovations/laya --output onnx --precision fp32
 laya-onnx optimize ./onnx --precision int8          # Intel CPU
 laya-onnx-ultrafast --dry-run --fixture examples/ultrafast_page.json --goal "..."
+laya-onnx-snake --model ./onnx                       # terminal Snake
 ```
 
 ## Deterministic mode
@@ -59,6 +60,19 @@ laya-onnx-ultrafast --dry-run --fixture examples/ultrafast_page.json --goal "...
 ```
 
 Spec: [docs/ULTRAFAST.md](docs/ULTRAFAST.md)
+
+## Snake
+
+Terminal demo — real ONNX decisions, guarded by default:
+
+```bash
+laya-onnx-snake --model ./onnx                        # arrows/WASD, Space pause, R reset
+laya-onnx-snake benchmark --model ./onnx --games 3 --steps 200
+laya-onnx-snake --headless --model ./onnx --steps 200 --record run.jsonl
+laya-onnx-snake export run.jsonl --html replay.html   # replay/export a recording
+```
+
+Browser mock (no weights): https://raw.githack.com/Geoking2104/laya-onnx/main/examples/snake.html — source: [`examples/snake.html`](examples/snake.html).
 
 ## Predict
 
