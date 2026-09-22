@@ -1,4 +1,3 @@
-"""laya-onnx-ultrafast — NL goal + DOM loop."""
 from __future__ import annotations
 import argparse, json
 from .agent import UltrafastAgent
@@ -13,7 +12,7 @@ def main(argv=None) -> int:
     p.add_argument("--dry-run", action="store_true")
     p.add_argument("--max-steps", type=int, default=20)
     p.add_argument("--headed", action="store_true")
-    p.add_argument("--deterministic", action="store_true", help="threads=1, argmax logits, heuristic TYPE_TEXT")
+    p.add_argument("--deterministic", action="store_true")
     args = p.parse_args(argv)
     if args.dry_run and not args.fixture:
         raise SystemExit("--dry-run needs --fixture")
