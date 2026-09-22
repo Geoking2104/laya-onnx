@@ -4,8 +4,10 @@ ONNX Runtime for [Laya](https://huggingface.co/convaiinnovations/laya) — typed
 
 PC / Linux / Windows / Intel sibling of [laya-coreml](https://github.com/mizorewww/laya-coreml) (Apple Silicon + ANE). Same `choice` / `score` / `noul` contract. Weights stay on Hugging Face.
 
-Playable board (English UI, canvas, performance dashboard):
-https://cdn.jsdelivr.net/gh/Geoking2104/laya-onnx@main/examples/snake.html
+**Play Snake (working preview):**
+https://raw.githack.com/Geoking2104/laya-onnx/main/examples/snake.html
+
+English UI, 720×480 canvas, keyboard map, performance dashboard.
 
 ---
 
@@ -47,15 +49,20 @@ print(agent.predict("The customer requests a refund of a duplicate payment.", {"
 
 ## Snake
 
+Terminal (real ONNX weights):
+
 ```bash
 laya-onnx-snake --model ./onnx
 ```
 
-Browser mock: https://cdn.jsdelivr.net/gh/Geoking2104/laya-onnx@main/examples/snake.html
+Browser mock (no weights):
 
-Keyboard mode shows a shortcut panel (↑↓←→ / WASD, Space, R). Performance panel: score, best, length, steps, eats, deaths, elapsed, steps/s, length sparkline.
+- **Preview that runs JS:** https://raw.githack.com/Geoking2104/laya-onnx/main/examples/snake.html
+- Source: [`examples/snake.html`](examples/snake.html)
 
-Use jsDelivr, not htmlpreview (JS is often blocked there).
+Keyboard: arrows or WASD, Space pause, R reset. Dashboard: score, best, length, steps, eats, deaths, elapsed, steps/s, length sparkline.
+
+Do not use `htmlpreview.github.io` (often skips scripts). jsDelivr `@main` can lag behind this repo.
 
 ## Convert
 
