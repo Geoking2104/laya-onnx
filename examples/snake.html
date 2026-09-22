@@ -1,29 +1,53 @@
 <!DOCTYPE html>
-<html lang="fr"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/>
+<html lang="en"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/>
 <title>laya-onnx Snake</title>
 <style>
 html,body{margin:0;background:#070b12;color:#e2e8f0;font-family:system-ui,sans-serif}
-.wrap{max-width:820px;margin:0 auto;padding:20px}h1{margin:6px 0 12px;font-size:26px}
-.kicker{color:#34d399;font-size:11px;letter-spacing:.18em;text-transform:uppercase}
-.bar{display:flex;gap:8px;flex-wrap:wrap;margin:0 0 12px}
-.pill{background:#1e293b;padding:6px 10px;border-radius:999px;font-size:13px}
-canvas{display:block;width:100%;max-width:768px;height:auto;background:#020617;border:2px solid #34d399;border-radius:12px}
-.row{display:flex;gap:8px;margin-top:12px;flex-wrap:wrap;align-items:center}
+.wrap{max-width:980px;margin:0 auto;padding:20px}.kicker{color:#34d399;font-size:11px;letter-spacing:.18em;text-transform:uppercase}
+h1{margin:6px 0 14px;font-size:26px}.grid{display:grid;grid-template-columns:1fr 260px;gap:16px}
+@media(max-width:840px){.grid{grid-template-columns:1fr}}
+canvas#c{display:block;width:100%;max-width:720px;background:#020617;border:2px solid #34d399;border-radius:12px}
+.panel{background:#0f172a;border:1px solid #1e293b;border-radius:12px;padding:14px}
+.panel h2{margin:0 0 10px;font-size:13px;letter-spacing:.08em;text-transform:uppercase;color:#94a3b8}
+.stat{display:flex;justify-content:space-between;font-size:13px;padding:5px 0;border-bottom:1px solid #1e293b}
+.stat b{color:#6ee7b7;font-variant-numeric:tabular-nums}
+.keys{display:none;margin-top:12px}.keys.on{display:block}
+.k{display:inline-block;min-width:22px;padding:3px 7px;margin:2px;border-radius:6px;background:#1e293b;border:1px solid #334155;font-size:12px;text-align:center}
+.row{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:12px}
 button,select{padding:8px 12px;border:0;border-radius:8px;background:#334155;color:#fff}
-#play{background:#34d399;color:#052e16;font-weight:700}#reason{color:#94a3b8;font-size:13px}
+#play{background:#34d399;color:#052e16;font-weight:700}#spark{width:100%;height:56px;background:#020617;border-radius:8px;margin-top:8px}
+.hint{color:#94a3b8;font-size:12px;margin-top:8px;line-height:1.45}
 </style></head><body>
-<div class="wrap">
-<div class="kicker">laya-onnx</div><h1>Snake</h1>
-<div class="bar"><span class="pill" id="score">score 0</span><span class="pill" id="len">len 6</span><span class="pill" id="policy">Laya mock</span></div>
-<canvas id="c" width="768" height="512">Canvas requis</canvas>
+<div class="wrap"><div class="kicker">laya-onnx</div><h1>Snake bench</h1>
+<div class="grid"><div>
+<canvas id="c" width="720" height="480">Canvas required</canvas>
 <div class="row"><button id="play">Pause</button><button id="reset">Reset</button>
-<select id="mode"><option value="laya">Laya mock</option><option value="cycle">Cycle</option><option value="human">Clavier</option></select>
-<input id="fps" type="range" min="3" max="16" value="8"/><span id="reason">chargement</span></div>
+<select id="mode"><option value="laya">Laya mock</option><option value="cycle">Hamilton cycle</option><option value="human">Keyboard</option></select>
+<label class="hint">FPS <input id="fps" type="range" min="3" max="16" value="8"/></label></div>
+<div id="keys" class="keys panel"><h2>Keyboard</h2>
+<div><span class="k">↑</span><span class="k">W</span> up</div>
+<div><span class="k">←</span><span class="k">A</span> left <span class="k">↓</span><span class="k">S</span> down <span class="k">→</span><span class="k">D</span> right</div>
+<div><span class="k">space</span> pause <span class="k">R</span> reset</div>
+<p class="hint">Choose Keyboard, then use the keys above. Reversing into the neck is illegal.</p></div>
 </div>
+<div class="panel"><h2>Performance</h2>
+<div class="stat">Score <b id="sc">0</b></div>
+<div class="stat">Best <b id="best">0</b></div>
+<div class="stat">Length <b id="ln">6</b></div>
+<div class="stat">Steps <b id="st">0</b></div>
+<div class="stat">Eats <b id="eat">0</b></div>
+<div class="stat">Deaths <b id="dead">0</b></div>
+<div class="stat">Elapsed <b id="el">0.0s</b></div>
+<div class="stat">Steps / s <b id="sps">0.0</b></div>
+<div class="stat">Last move <b id="mv">-</b></div>
+<canvas id="spark" width="232" height="56"></canvas>
+<p class="hint">Sparkline = length over the last 80 steps. Mock policy, no ONNX.</p>
+</div></div></div>
 <script>
 (function(){
-var W=24,H=16,CAP=W*H,CW=768,CH=512,CW0=CW/W,CH0=CH/H;
+var W=24,H=16,CAP=W*H,CW=720,CH=480,CW0=CW/W,CH0=CH/H;
 var canvas=document.getElementById("c"),ctx=canvas.getContext("2d");
+var spark=document.getElementById("spark"),sctx=spark.getContext("2d");
 var DIRS={UP:[0,-1],DOWN:[0,1],LEFT:[-1,0],RIGHT:[1,0]},NAMES=["UP","DOWN","LEFT","RIGHT"];
 function ham(w,h){if(h%2)return ham(h,w).map(function(p){return[p[1],p[0]]});var p=[[0,0]],y,x;for(y=0;y<h;y++){if(y%2===0)for(x=1;x<w;x++)p.push([x,y]);else for(x=w-1;x>0;x--)p.push([x,y]);}for(y=h-1;y>0;y--)p.push([0,y]);return p;}
 var cycle=ham(W,H),idx={};for(var i=0;i<cycle.length;i++)idx[cycle[i][0]+","+cycle[i][1]]=i;
@@ -35,17 +59,21 @@ Game.prototype.legal=function(d){var t=this.target(d),x=t[0],y=t[1],i;if(x<0||y<
 Game.prototype.step=function(d){if(!this.alive)return"dead";var why=this.legal(d);if(why!=="legal"){this.alive=false;return why;}var n=this.target(d);var eats=this.food&&n[0]===this.food[0]&&n[1]===this.food[1];this.body.unshift(n);if(eats){this.score++;this.food=this.spawn();}else this.body.pop();return eats?"eat":"ok";};
 function cycleDir(g){var i=idx[g.body[0][0]+","+g.body[0][1]],n=cycle[(i+1)%CAP];var dx=n[0]-g.body[0][0],dy=n[1]-g.body[0][1];if(dx===1)return"RIGHT";if(dx===-1)return"LEFT";if(dy===1)return"DOWN";return"UP";}
 function mock(g){var best=null,bd=99,i;for(i=0;i<4;i++){var d=NAMES[i];if(g.legal(d)!=="legal")continue;var t=g.target(d),dist=g.food?Math.abs(t[0]-g.food[0])+Math.abs(t[1]-g.food[1]):99;if(dist<bd){bd=dist;best=d;}}return best||cycleDir(g);}
-function paint(){ctx.fillStyle="#020617";ctx.fillRect(0,0,CW,CH);ctx.strokeStyle="#1e293b";var x,y;for(x=0;x<=W;x++){ctx.beginPath();ctx.moveTo(x*CW0,0);ctx.lineTo(x*CW0,CH);ctx.stroke();}for(y=0;y<=H;y++){ctx.beginPath();ctx.moveTo(0,y*CH0);ctx.lineTo(CW,y*CH0);ctx.stroke();}if(game.food){ctx.fillStyle="#fbbf24";ctx.fillRect(game.food[0]*CW0+3,game.food[1]*CH0+3,CW0-6,CH0-6);}for(var i=game.body.length-1;i>=0;i--){var c=game.body[i];ctx.fillStyle=i===0?"#6ee7b7":"#059669";ctx.fillRect(c[0]*CW0+2,c[1]*CH0+2,CW0-4,CH0-4);}document.getElementById("score").textContent="score "+game.score;document.getElementById("len").textContent="len "+game.body.length;}
+function paint(){ctx.fillStyle="#020617";ctx.fillRect(0,0,CW,CH);ctx.strokeStyle="#1e293b";var x,y;for(x=0;x<=W;x++){ctx.beginPath();ctx.moveTo(x*CW0,0);ctx.lineTo(x*CW0,CH);ctx.stroke();}for(y=0;y<=H;y++){ctx.beginPath();ctx.moveTo(0,y*CH0);ctx.lineTo(CW,y*CH0);ctx.stroke();}if(game.food){ctx.fillStyle="#fbbf24";ctx.fillRect(game.food[0]*CW0+3,game.food[1]*CH0+3,CW0-6,CH0-6);}for(var i=game.body.length-1;i>=0;i--){var c=game.body[i];ctx.fillStyle=i===0?"#6ee7b7":"#059669";ctx.fillRect(c[0]*CW0+2,c[1]*CH0+2,CW0-4,CH0-4);}}
+function sparkline(){sctx.fillStyle="#020617";sctx.fillRect(0,0,232,56);if(hist.length<2)return;var max=1,i;for(i=0;i<hist.length;i++)if(hist[i]>max)max=hist[i];sctx.strokeStyle="#34d399";sctx.beginPath();for(i=0;i<hist.length;i++){var px=i*(232/Math.max(hist.length-1,1));var py=52-(hist[i]/max)*48;if(i===0)sctx.moveTo(px,py);else sctx.lineTo(px,py);}sctx.stroke();}
 var game=new Game(),running=false,humanDir="RIGHT",timer=null;
-function tick(){var mode=document.getElementById("mode").value;var dir=cycleDir(game);if(mode==="laya")dir=mock(game);if(mode==="human")dir=humanDir;var r=game.step(dir);document.getElementById("reason").textContent=game.alive?(dir+" · "+r):("mort · "+r);paint();if(!game.alive)stop();}
+var steps=0,eats=0,deaths=0,best=0,t0=performance.now(),hist=[];
+function dash(dir,r){document.getElementById("sc").textContent=game.score;if(game.score>best)best=game.score;document.getElementById("best").textContent=best;document.getElementById("ln").textContent=game.body.length;document.getElementById("st").textContent=steps;document.getElementById("eat").textContent=eats;document.getElementById("dead").textContent=deaths;var sec=(performance.now()-t0)/1000;document.getElementById("el").textContent=sec.toFixed(1)+"s";document.getElementById("sps").textContent=sec>0?(steps/sec).toFixed(1):"0.0";document.getElementById("mv").textContent=(dir||"-")+" / "+(r||"-");}
+function tick(){var mode=document.getElementById("mode").value;var dir=cycleDir(game);if(mode==="laya")dir=mock(game);if(mode==="human")dir=humanDir;var r=game.step(dir);steps++;if(r==="eat")eats++;if(!game.alive)deaths++;hist.push(game.body.length);if(hist.length>80)hist.shift();paint();sparkline();dash(dir,r);if(!game.alive){stop();setTimeout(function(){game=new Game();humanDir="RIGHT";paint();dash("reset","new");if(document.getElementById("mode").value!=="human")start();},700);}}
 function start(){if(running)return;running=true;document.getElementById("play").textContent="Pause";timer=setInterval(tick,1000/Number(document.getElementById("fps").value));}
 function stop(){running=false;document.getElementById("play").textContent="Play";clearInterval(timer);}
-function reset(){stop();game=new Game();humanDir="RIGHT";paint();start();}
+function reset(){stop();game=new Game();humanDir="RIGHT";steps=0;eats=0;deaths=0;t0=performance.now();hist=[];paint();sparkline();dash("reset","ok");start();}
+function syncKeys(){document.getElementById("keys").className="keys panel"+(document.getElementById("mode").value==="human"?" on":"");}
 document.getElementById("play").onclick=function(){running?stop():start();};
 document.getElementById("reset").onclick=reset;
-document.getElementById("mode").onchange=function(){var m=this.value;document.getElementById("policy").textContent=m==="human"?"humain":m==="cycle"?"cycle":"Laya mock";};
+document.getElementById("mode").onchange=syncKeys;
 document.getElementById("fps").onchange=function(){if(running){stop();start();}};
-window.addEventListener("keydown",function(e){var map={ArrowUp:"UP",ArrowDown:"DOWN",ArrowLeft:"LEFT",ArrowRight:"RIGHT",w:"UP",s:"DOWN",a:"LEFT",d:"RIGHT"};if(map[e.key]){humanDir=map[e.key];e.preventDefault();}if(e.key===" "){running?stop():start();e.preventDefault();}if(e.key==="r"||e.key==="R")reset();});
-paint();start();
+window.addEventListener("keydown",function(e){var map={ArrowUp:"UP",ArrowDown:"DOWN",ArrowLeft:"LEFT",ArrowRight:"RIGHT",w:"UP",s:"DOWN",a:"LEFT",d:"RIGHT",W:"UP",S:"DOWN",A:"LEFT",D:"RIGHT"};if(map[e.key]){humanDir=map[e.key];if(document.getElementById("mode").value!=="human"){document.getElementById("mode").value="human";syncKeys();}e.preventDefault();}if(e.key===" "){running?stop():start();e.preventDefault();}if(e.key==="r"||e.key==="R")reset();});
+syncKeys();paint();sparkline();dash("-","ready");start();
 })();
 </script></body></html>
