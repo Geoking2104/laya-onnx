@@ -32,6 +32,7 @@ laya-onnx convert  --model convaiinnovations/laya --output onnx --precision fp32
 laya-onnx optimize ./onnx --precision int8          # Intel CPU
 laya-onnx-ultrafast --dry-run --fixture examples/ultrafast_page.json --goal "..."
 laya-onnx-snake --model ./onnx                       # terminal Snake
+laya-onnx verify   --model ./onnx                    # SHA-256 check vs bundled manifest
 ```
 
 ## Deterministic mode
@@ -73,6 +74,24 @@ laya-onnx-snake export run.jsonl --html replay.html   # replay/export a recordin
 ```
 
 Browser mock (no weights): https://raw.githack.com/Geoking2104/laya-onnx/main/examples/snake.html — source: [`examples/snake.html`](examples/snake.html).
+
+## Benchmarks & calibration
+
+Reproducible accuracy, calibration (ECE) and latency:
+
+```bash
+python benchmarks/evaluate.py ./onnx --json benchmarks/results.json
+```
+
+Published numbers and method: [benchmarks/results.md](benchmarks/results.md). The eval set is a small labeled self-check (`benchmarks/eval/decisions.jsonl`), not a leaderboard.
+
+## Verify a download
+
+```bash
+laya-onnx verify --model ./onnx
+```
+
+Hashes every file in the bundle against the SHA-256 manifest in [`laya_onnx/checksums/`](laya_onnx/checksums/receptron-laya-onnx.json). Exits non-zero on any missing file or digest mismatch.
 
 ## Predict
 

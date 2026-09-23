@@ -36,6 +36,14 @@ def main(argv=None):
     convert.add_argument("--precision", choices=("fp32", "int8"), default="fp32")
     convert.add_argument("--opset", type=int, default=17)
 
+    verify = commands.add_parser("verify")
+    verify.add_argument("--model", required=True, help="Local model directory to check")
+    verify.add_argument(
+        "--checksums",
+        type=Path,
+        help="Checksum manifest JSON (default: bundled receptron/laya-onnx manifest)",
+    )
+
     args = parser.parse_args(argv)
     if args.command == "convert":
         from .convert import convert as do_convert
@@ -50,6 +58,16 @@ def main(argv=None):
         )
         print(json.dumps({"output": str(result), "precision": args.precision}))
         return
+    if args.command == "verify":
+        from .verify import verify_bundle
+
+        try:
+            ok, rows = verify_bundle(args.model, args.checksums)
+        except FileNotFoundError as error:
+            parser.error(str(error))
+        for row in rows:
+            print("%15s  %s" % (row["status"], row["file"]))
+        return 0 if ok else 1
     state = args.state if args.state is not None else json.loads(args.state_file.read_text())
     questions = json.loads(args.questions.read_text())
     agent = Agent(

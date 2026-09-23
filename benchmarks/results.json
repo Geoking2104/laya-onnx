@@ -1,0 +1,38 @@
+{
+  "by_type": {
+    "choice": {
+      "n": 4,
+      "accuracy": 1.0,
+      "ece": 0.4559
+    },
+    "noul": {
+      "n": 4,
+      "accuracy": 1.0,
+      "ece": 0.1288
+    },
+    "score": {
+      "n": 2,
+      "accuracy": 0.5,
+      "ece": 0.1122,
+      "mae": 0.5302
+    }
+  },
+  "overall": {
+    "items": 8,
+    "questions": 10,
+    "answers_scored": 10,
+    "accuracy": 0.9,
+    "ece": 0.2563,
+    "latency_ms": {
+      "mean": 2807.998,
+      "p50": 1759.94,
+      "p95": 7417.614
+    }
+  },
+  "model": {
+    "id": "C:\\Users\\geoff\\.cache\\huggingface\\hub\\laya-onnx-bundles\\receptron--laya-onnx",
+    "providers": "cpu",
+    "threads": null,
+    "deterministic": false
+  }
+}
